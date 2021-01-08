@@ -1,0 +1,2 @@
+/usr/lib/systemd/system-sleep/10-clickpad.sh pre sleep
+/usr/lib/systemd/system-sleep/10-clickpad.sh post sleep

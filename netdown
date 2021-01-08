@@ -1,0 +1,10 @@
+#!/bin/bash
+
+regex="^enp.*$"
+
+sudo dhcpcd -x 2>/dev/null || sudo dhcpcd -x $INTERFACE
+if ! [[ $INTERFACE =~ $regex ]]; then
+	sudo wpa_cli terminate >/dev/null
+fi
+sudo ip link set $INTERFACE down
+exit 0

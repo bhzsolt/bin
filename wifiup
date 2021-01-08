@@ -1,0 +1,12 @@
+#!/bin/bash
+
+WPASSID="$1"
+if [ "$WPASSID" != "" ] 
+	then 	if [ "$WPASSID" != "cmd" ]
+			then	network_id=$( sudo wpa_cli list_networks | grep -Eo "^[0-9]+\s+.*${WPASSID}.+$" | grep -Eo "^[0-9]+")
+					network_id="-B select_network ${network_id}"
+			fi
+	else	network_id="-B reassociate"
+	fi
+sudo wpa_cli $network_id
+exit 0

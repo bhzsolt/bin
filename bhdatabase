@@ -1,0 +1,96 @@
+#!/bin/bash
+
+error() {
+	case $1 in
+		1)	echo "usage: $0 <database> <command> <'pattern'> <@ audiodevice mpvflags>"
+			;;
+		2)	echo "Error: database: music, movie"
+			error 1
+			;;
+		3)	echo "Error: command: update, search, play"
+			error 1
+			;;
+		4)	echo "Error: additional arguments missing:"
+			echo "'' enclosed pattern(s)"
+			error 1
+			;;
+	esac
+	exit $1
+}
+
+if [ $# -eq 0 ]
+	then	error 1
+fi
+case "$1" in
+	"music")	database=$1
+			basepath[0]='/data/intr_1/music/_artist'
+			filetypes='(mp4|mp3|flac|wav|mpc|wma)'
+			shift
+			;;
+	"movie")	database=$1
+			basepath[0]='/data/intr_0/rtorrent/download'
+			filetypes='(avi|mkv|mp4|m4v|mpv|mpg|mpeg)'
+			shift
+			;;
+	*)		error 2
+			;;
+esac
+case "$1" in
+	"")		cmd=update
+			;;
+	"update")	cmd=$1
+			shift
+			;;
+	"search")	cmd=$1
+			shift
+			if [ -z "$1" ]
+				then	error 4
+			fi
+			pattern='.*('$1
+			shift
+			for i; do
+				pattern="$pattern|$i"
+			done
+			pattern=$pattern').*'
+			;;
+	"play")		cmd=$1
+			shift
+			if [ -z "$1" ]
+				then	error 4
+			fi
+			pattern='.*('$1
+			shift
+			n=0
+			for i; do
+				((n=n+1))
+				if [ "$i" = '@' ]
+					then	break
+				fi
+				pattern="$pattern|$i"
+			done
+			pattern=$pattern').*'
+			shift $n
+			arguments=$@ 
+			;;
+	*)		error 3
+			;;
+esac
+
+case "$cmd" in
+	"update")	
+		cd ~/bin/database
+		rm $database
+		for i in "${basepath[@]}"; do
+			find -H $i -type f | grep -E "^.+\.${filetypes}$" >>/tmp/tmp_sort
+		done
+		sort /tmp/tmp_sort -o $database
+		rm /tmp/tmp_sort
+		;;
+	"search")
+		grep -i -E "$pattern" ~bhzsolt/bin/database/$database
+		;;
+	"play")
+		playmusic "$pattern" "$arguments"
+esac
+
+exit 0

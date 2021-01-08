@@ -1,0 +1,76 @@
+#!/bin/python3
+
+import subprocess
+from sys import exit
+
+def metadata_from_path(path):
+    pathlist = path.split('/')
+    track_title_ftype = pathlist.pop()
+    date_album = pathlist.pop()
+
+    artist = pathlist.pop()
+    
+    date_album = date_album.split(' - ')
+    
+    date = date_album[0]
+    album = ' - '.join(date_album[1:])
+    
+    track_title_ftype = track_title_ftype.split('.')
+    ftype = track_title_ftype.pop()
+    track_title = '.'.join(track_title_ftype)
+    track_title = track_title.split(' - ')
+    
+    track = track_title[0]
+    title = ' - '.join(track_title[1:])
+
+    return (artist, date, album, track, title, ftype)
+
+
+with open('/home/bhzsolt/bin/database/music', 'r') as f:
+    contents = f.read().strip()
+    lines = contents.split('\n')
+f.close()
+
+for path in lines:
+    args = ['ffmpeg', '-i', path, '-f', 'ffmetadata', '/tmp/metadata.in']
+    p = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = p.communicate('y\n'.encode('utf-8'))
+    with open('/tmp/metadata.in', 'r') as f:
+        contents = f.read().strip()
+        lines = contents.split('\n')
+    f.close()
+    metadata = {}
+    for line in lines:
+        if line != ';FFMETADATA1':
+            keyvalue = line.split('=')
+            if len(keyvalue) == 2:
+                metadata[keyvalue[0]] = keyvalue[1]
+    if ('artist' not in metadata.keys() and 'ARTIST' not in metadata.keys()) or ('date' not in metadata.keys() and 'DATE' not in metadata.keys()) or ('album' not in metadata.keys() and 'ALBUM' not in metadata.keys()) or 'track' not in metadata.keys() or ('title' not in metadata.keys() and 'TITLE' not in metadata.keys()):
+        print(path)
+        artist, date, album, track, title, ftype = metadata_from_path(path)
+        if 'artist' not in metadata.keys():
+            metadata['artist'] = artist
+        if 'date' not in metadata.keys():
+            metadata['date'] = date
+        if 'album' not in metadata.keys():
+            metadata['album'] = album
+        if 'track' not in metadata.keys():
+            metadata['track'] = track
+        if 'title' not in metadata.keys():
+            metadata['title'] = title
+        print(metadata)
+
+        with open('/tmp/metadata.out', 'w') as f:
+            f.write(';FFMETADATA1\n')
+            for key in metadata.keys():
+                f.write('{}={}\n'.format(key, metadata[key]))
+        f.close()
+        
+        args = ['ffmpeg', '-i', path, '-i', '/tmp/metadata.out', '-map_metadata', '1', '-c:a', 'copy', '-id3v2_version', '3', '-write_id3v1', '1', path + '.tmp.' + ftype]
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output = p.communicate()
+        args = ['mv', path + '.tmp.' + ftype, path]
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output = p.communicate()
+        print(output)
+

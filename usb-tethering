@@ -1,0 +1,5 @@
+#!/bin/bash
+
+device=`ip link | grep enp0s20 | awk '{ print $2; }' | awk -F':' '{ print $1; }'`
+ip link | grep "$device" | grep 'UP' >/dev/null 2>&1 || sudo ip link set $device up
+exec sudo dhcpcd $device

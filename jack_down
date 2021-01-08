@@ -1,0 +1,5 @@
+killall -9 jackdbus
+jack_control stop
+killall -9 jackdbus
+
+exit 0

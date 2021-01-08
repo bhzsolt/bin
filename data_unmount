@@ -1,0 +1,58 @@
+#!/bin/bash
+
+if [ "$2" == "" ]
+   then one="y"
+   else one="n"
+   fi
+
+stay="y"
+
+number=$1
+if [ "$number" == "all" ]
+	then umount /dev/sda6
+	     echo "/data/one umounted!"
+	     umount /dev/sda7
+	     echo "/data/two umounted!"
+	     umount /dev/sda8
+	     echo "/data/three umounted!"
+	     echo "exiting"
+	else if [ "$number" == "" ] 
+		then echo "please enter datapoint to unmount!"
+	     	     read number
+		     one="n"
+	     fi
+	     while [ "$stay" == "y" ] 
+	     	do
+		if [ "$number" == "one" ]
+			then umount /dev/sda6
+			     if [ "$one" == "y" ]
+			     	then stay="n"
+				else stay="y"
+				fi
+			else if [ "$number" == "two" ]
+				then umount /dev/sda7
+				     if [ "$one" == "y" ]
+				     	then stay="n"
+					else stay="y"
+					fi
+				else if [ "$number" == "three" ]
+					then umount /dev/sda8
+					     if [ "$one" == "y" ]
+						then stay="n"
+						else stay="y"
+						fi
+					else if [ "$number" == "n" ]
+						then echo "exiting"
+					     	     stay="n"
+						else echo "no such datapoint!"
+						fi
+					fi
+				fi
+			fi
+		if [ "$stay" == "y" ] 
+			then echo "would you like to unmount another datapoint? (datapoint/n)"
+		             read number
+		     fi
+	     done
+     fi
+exit 0

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+killall -9 jackdbus
+jack_control stop
+killall -9 jackdbus
+jack_control ds alsa
+jack_control dps rate 48000
+jack_control dps device hw:MBox
+jack_control dps capture hw:MBox
+jack_control dps playback hw:MBox
+jack_control dps period 128 
+jack_control start
+
+exit 0

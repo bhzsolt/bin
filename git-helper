@@ -1,0 +1,85 @@
+#!/bin/bash
+#set foldmethod=marker
+#set foldmarker={,}
+
+function git-activity {
+	[ -d "$1" ] && cd $1
+	git log -n1 --pretty=format:%ar 2>/dev/null || echo 'not a git repo'
+}
+
+function get_git_branch {
+	branch=`git branch 2>/dev/null | sed -E '/^[^*]/d;s/^\* (.+)/\1/'`
+	if [ ! -z "$branch" ]
+		then branch="($branch)"
+	fi
+	echo $branch
+}
+
+function update-git {
+	if git branch 1>/dev/null 2>&1; then
+		push=false
+		git add -A
+		git add * >/dev/null 2>&1
+		while :; do
+			if [ 0 -ne `git status -s | wc -l` ]; then
+			#staging area is not clean
+				git status -s
+				read -p 'modify staging area? [y/N/filenames]: ' choice
+				if [ "$choice" = 'y' ] || [ "$choice" = 'Y' ]; then
+				#modify staging area -> y/Y
+					for file in `git status --porcelain | awk '{ print $NF; }'`; do
+						read -p "$file [r(emove)/K(eep)]: " ch
+						if [ "$ch" = 'r' ] || [ "$ch" = 'R' ]; then
+							git restore --staged $file
+						fi
+					done 
+				elif [ -n "$choice" ] && [ "$choice" != 'n' ] && [ "$choice" != 'N' ]; then
+				#modify staging area -> filenames
+					git restore --staged $choice
+				fi
+				if ! git status | grep 'no changes added to commit' >/dev/null 2>&1; then
+				#there are changes to commit
+					if [ -n "$choice" ] && [ "$choice" != 'n' ] && [ "$choice" != 'N' ]; then
+					#if we modified the staging area
+						git status -s
+					fi
+					read -p 'enter commit message: ' message
+					git commit -m "$message"
+					push=true
+				else
+					break
+				fi
+				git add -A
+				git add * >/dev/null 2>&1
+			else
+			#staging area is clean
+				echo "staging area is clean"
+				break
+			fi
+		done
+		if $push || git status --porcelain --branch | grep 'ahead' >/dev/null 2>&1; then
+			git push
+		fi
+		read -p "return"
+	fi
+}
+
+if [ "$#" -lt 1 ]; then
+	echo usage: $0 'activity (directory)? | branch | update'
+	exit 1
+fi
+
+option=$1
+shift
+case $option in
+	activity)
+		git-activity $@
+		;;
+	branch)
+		get_git_branch
+		;;
+	update)
+		update-git 
+		;;
+esac
+exit $?

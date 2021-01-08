@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#audiodevice=$1
+pattern=$1
+flags=$2
+	
+filename=$(ls | grep -E ".*${pattern}.*(mp4|mkv|avi)$")
+subfile=$(ls | grep -E ".*${pattern}.*\.srt$")
+
+#mpv $filename --sub-file="$subfile" --audio-device="$audiodevice" &
+mpv "$filename" --sub-file="$subfile" $flags &
+exit 0

@@ -1,0 +1,19 @@
+#!/bin/bash
+# playmusic [pattern] [AUDIO-PLAYER FLAGS]
+
+exec 2>/dev/null
+
+pattern='.*'$1'.*'
+shift
+if [ "$1" == "jack" ]
+	then	flag[0]="--audio-device=jack"
+		flag[1]="--volume=58"
+		shift
+	fi
+
+IFS=$(echo -en "\n\b" )
+st -c 'mpv' -g 65x10--0--0 -e mpv `grep -i -E $pattern ~/bin/database/music` ${flag[@]} $@ '--geometry=520x520--0+-0' &
+IFS=$' \n\t'
+unset pattern
+unset flag
+exit 0

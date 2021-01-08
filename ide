@@ -1,0 +1,26 @@
+#!/bin/bash
+
+index=0
+environment=(
+	$HOME
+	'/data/intr_0/work/_allamvizsga/repo'
+	'~/dotfiles'
+	'/data/intr_0/nttdata'
+)
+
+if [ -n "$1" ]; then
+	case "$1" in
+		thesis)
+			index=1
+			;;
+		nttdata)
+			index=3
+			;;
+		default|*)
+			index=2
+			;;
+	esac
+fi
+
+name="[IDE :: `basename ${environment[$index]}`]"
+exec st -n "$name" -t "$name" -T "$name" -e bash ~/bin/ide.helper.sh "${environment[$index]}"

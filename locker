@@ -1,0 +1,6 @@
+#!/bin/bash
+
+physlock -l
+slock
+exec physlock -L
+

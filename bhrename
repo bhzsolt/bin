@@ -1,0 +1,189 @@
+#!/bin/bash
+
+function capitalize {
+	file=$1
+	t=$2
+
+	capped=`echo ${file%.${t}} | sed "s/\((\)\(.\)/\1\u\2/g"`; 
+	capped=`echo ${capped} | sed "s/\(\s\)\(.\)/\1\u\2/g"`; 
+
+	echo capitalizing $file
+	echo $capped.$t
+	mv "$file" "$capped.$t";
+	return $?
+}
+
+function underscoretr {
+	file=$1
+	nounderscore=${file//_/ }
+
+	echo removing underscores from $file
+	echo $nounderscore
+	mv "$file" "$nounderscore"
+	return $?
+}
+
+function sep {
+	file=$1
+	number=${file%%-*}
+	if [[ ${#number} -eq 1 ]]
+	then
+		number=`printf "%02d" $number`
+	fi
+	suffix=${file#*-}
+	echo renaming $file
+	echo "$number - $suffix"
+	mv "$file" "$number - $suffix"
+	return $?
+}
+
+function wrongsep {
+	file=$1
+	number=${file%% -*}
+	if [[ ${#number} -eq 1 ]]
+	then
+		number=`printf "%02d" $number`
+	fi
+	suffix=${file#*-}
+	echo renaming $file
+	echo "$number - $suffix"
+	mv "$file" "$number - $suffix"
+	return $?
+}
+
+function nosep {
+	file=$1
+	number=${file%% *}
+	if [[ ${#number} -eq 1 ]]
+	then
+		number=`printf "%02d" $number`
+	fi
+	suffix=${file#* }
+	echo renaming $file
+	echo "$number - $suffix"
+	mv "$file" "$number - $suffix"
+	return $?
+}
+
+function nosep2 {
+	file=$1
+	number=${file%% *}
+	if [[ ${#number} -eq 1 ]]
+	then
+		number=`printf "%02d" $number`
+	fi
+	suffix=${file#* }
+	echo renaming $file
+	echo "$number -$suffix"
+	mv "$file" "$number -$suffix"
+	return $?
+}
+
+function point {
+	file=$1
+	number=${file%%.*}
+	if [[ ${#number} -eq 1 ]]
+	then
+		number=`printf "%02d" $number`
+	fi
+	suffix=${file#*.}
+	echo renaming $file
+	echo "$number - $suffix"
+	mv "$file" "$number - $suffix"
+	return $?
+}
+
+function point2 {
+	file=$1
+	number=${file%%.*}
+	if [[ ${#number} -eq 1 ]]
+	then
+		number=`printf "%02d" $number`
+	fi
+	suffix=${file#*.}
+	echo renaming $file
+	echo "$number -$suffix"
+	mv "$file" "$number -$suffix"
+	return $?
+}
+
+function removeartist {
+	file=$1
+	artist=$2
+	echo removing $2-
+	mv "$file" "${file/$artist-/}"
+	return $?
+}
+
+function removeartist2 {
+	file=$1
+	artist=$2
+	echo removing $2
+	mv "$file" "${file/$artist/}"
+	return $?
+}
+
+function fixnumber {
+	file=$1
+	number=${file:0:1}
+	number=`printf "%02d" $number`
+	suffix=${file:1}
+	echo fixing number $file
+	mv "$file" "${number}${suffix}"
+	return $?
+}
+
+filetypes=('m4a' 'mp4' 'mp3' 'flac' 'wav' 'mpc' 'wma')
+lowercase="^[[:digit:]]{1,2}.*[[:space:]\(\[]+[[:lower:]].*\.(m4a|mp4|mp3|flac|wav|mpc|wma)$"
+underscore="^[[:digit:]]{1,2}.*_.*\.(m4a|mp4|mp3|flac|wav|mpc|wma)$"
+separator="^[[:digit:]]{1,2}-.*\.(m4a|mp4|mp3|flac|wav|mpc|wma)$"
+wrongseparator="^[[:digit:]]{1,2} -[^[:space:]].*\.(m4a|mp4|mp3|flac|wav|mpc|wma)$"
+noseparator="^[[:digit:]]{1,2} [^- ][[:alnum:][:punct:][:space:]]+\.(m4a|mp4|mp3|flac|wac|mpc|wma)$"
+nosepdouble="^[[:digit:]]{1,2} [^-\.][[:alnum:][:punct:][:space:]]+\.(m4a|mp4|mp3|flac|wac|mpc|wma)$"
+repoint="^[[:digit:]]{1,2}\.[^[:space:]][[:alnum:][:punct:][:space:]]+\.(m4a|mp4|mp3|flac|wac|mpc|wma)$"
+repoint2="^[[:digit:]]{1,2}\. [[:alnum:][:punct:][:space:]]+\.(m4a|mp4|mp3|flac|wac|mpc|wma)$"
+number="^[[:digit:]][^[:digit:]].*\.(m4a|mp4|mp3|flac|wav|mpc|wma)$"
+
+for t in ${filetypes[@]};
+do
+	save=$IFS
+	IFS=$(echo -en "\n\b")
+	for file in `ls | grep -e "^.*\.${t}$"`; 
+	do
+		if [[ $file =~ $underscore ]]
+		then
+			underscoretr $file
+		elif [[ $file =~ $separator ]]
+		then 
+			sep $file
+		elif [[ $file =~ $noseparator ]]
+		then
+			nosep $file
+		elif [[ $file =~ $nosepdouble ]]
+		then
+			nosep2 $file
+		elif [[ $file =~ $wrongseparator ]]
+		then
+			wrongsep $file
+		elif [[ $file =~ $repoint ]]
+		then
+			point $file
+		elif [[ $file =~ $repoint2 ]]
+		then
+			point2 $file
+		elif [[ $file =~ $lowercase ]]
+		then 
+			capitalize $file $t
+		elif [[ $file =~ $number ]]
+		then
+			fixnumber $file
+		elif [[ "$1" == "artist" ]]
+		then
+			removeartist $file $2
+		elif [[ "$1" == "artist2" ]]
+		then
+			removeartist2 $file $2
+		fi
+	done
+	IFS=$save
+done

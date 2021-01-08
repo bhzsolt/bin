@@ -1,0 +1,7 @@
+#!/bin/bash
+exec 2>/dev/null
+
+pattern='.*'$1'.*'
+grep -i -E $pattern bin/database/music | sed -r 's/^.*\/([^\/]+)$/\1/g' | dmenu -fn "Source Code Pro:size=10" -w "$WINDOWID" -l 50
+unset pattern
+exit 0

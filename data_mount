@@ -1,0 +1,58 @@
+#!/bin/bash
+
+if [ "$2" == "" ]
+   then one="y"
+   else one="n"
+   fi
+
+stay="y"
+
+number=$1
+if [ "$number" == "all" ]
+	then mount /data/one
+	     echo "/data/one mounted!"
+	     mount /data/two
+	     echo "/data/two mounted!"
+	     mount /data/three
+	     echo "/data/three mounted!"
+	     echo "exiting"
+	else if [ "$number" == "" ] 
+		then echo "please enter datapoint to mount!"
+	     	     read number
+		     one="n"
+	     fi
+	     while [ "$stay" == "y" ] 
+	     	do
+		if [ "$number" == "one" ]
+			then mount /data/one
+			     if [ "$one" == "y" ]
+			     	then stay="n"
+				else stay="y"
+				fi
+			else if [ "$number" == "two" ]
+				then mount /data/two
+				     if [ "$one" == "y" ]
+				     	then stay="n"
+					else stay="y"
+					fi
+				else if [ "$number" == "three" ]
+					then mount /data/three
+					     if [ "$one" == "y" ]
+						then stay="n"
+						else stay="y"
+						fi
+					else if [ "$number" == "n" ]
+						then echo "exiting"
+					     	     stay="n"
+						else echo "no such datapoint!"
+						fi
+					fi
+				fi
+			fi
+		if [ "$stay" == "y" ] 
+			then echo "would you like to mount another datapoint? (datapoint/n)"
+		             read number
+		     fi
+	     done
+     fi
+exit 0

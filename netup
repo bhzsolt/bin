@@ -1,0 +1,55 @@
+#!/bin/bash
+
+exec 3>>~/.log/netup/$(date +%Y%m%d)
+date +%T >&3
+
+sudo -p "netup[$INTERFACE]: " clear
+
+echo sudo ip link set $INTERFACE up >&3
+sudo ip link set $INTERFACE up >&3
+if ! [[ "$INTERFACE" =~ "enp" ]]; then
+	echo sudo wpa_supplicant -B -i $INTERFACE -c /etc/wpa_supplicant/bhzsolt.conf #>&3 2>&1
+	sudo wpa_supplicant -B -i $INTERFACE -c /etc/wpa_supplicant/bhzsolt.conf #>&3 2>&1
+	echo wpa_cli scan
+	wpa_cli scan #>&3 2>&1
+	sleep 5s && { echo sudo wpa_cli scan_results; sudo wpa_cli scan_results; }
+	read WPASSID WPASETD
+	network_id=""
+	
+	if [ "$WPASSID" != "" ]; then 
+		if [ "$WPASSID" != "cmd" ]; then	
+			network_id=$( sudo wpa_cli list_networks | grep -Eo "^[0-9]+\s+.*${WPASSID}.+$" | grep -Eo "^[0-9]+")
+			network_id="-B select_network ${network_id}"
+		fi
+	else
+		network_id="-B reassociate"
+	fi
+
+	if [ "$network_id" == "" ]; then
+		exec 3>&1
+	fi
+
+	if [ "$network_id" != "" ]; then
+		if [ "$WPASETD" != "" ]; then
+			echo "Setting network $WPASSID default"
+		fi
+	else
+		echo "Configuring networks"
+	fi
+
+	echo wpa_cli $network_id #>&3
+	wpa_cli $network_id #>&3
+	if [ "$WPASETD" != "" ]; then
+		echo wpa_cli -B save_config #>&3
+		wpa_cli -B save_config #>&3
+	fi
+	
+	unset WPASSID WPASETD
+fi
+
+echo sudo dhcpcd $INTERFACE
+sudo dhcpcd $INTERFACE
+
+exec	3>&-
+exit 0
+

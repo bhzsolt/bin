@@ -1,0 +1,73 @@
+#!/bin/bash
+# bodoki-halmen zsolt
+# monitor setup wrapper
+#set foldmethod=marker
+#set foldmarker={,}
+
+function scale-monitor { 
+	if [[ $# -lt 3 ]]; then
+		echo usage: scale-monitor name device scale
+		return 1
+	fi
+	name=$1;
+	device=$2;
+	scale=$3;
+	xrandr --listmonitors | grep $name >/dev/null 2>&1 && xrandr --delmonitor $name 
+	other_offset=(`xrandr --listmonitors | tail -n1 | awk -F+ '{print $2; print $3;}'`)
+	if [[ ${other_offset[0]} -ne 0 ]]; then
+		offset=+0+0
+	else
+		offset=+`xrandr --listmonitors | tail -n1 | awk -F'[x/ ]' '{ print $4; }'`+0
+	fi
+	pyscript="import numpy as np; res = np.array([1920, 1080]) * $scale; print('{}/530x{}/300${offset}'.format(int(res[0]), int(res[1])));";
+	geom=`python <<< $pyscript`;
+	xrandr --setmonitor $name $geom $device --output $device --scale $scale; 
+	feh --bg-fill ~/Desktop/.wallpapers/current.jpg; 
+}
+
+if [ $# -gt 1 ]; then
+	echo "usage: $0 <left/right/above/below>"
+	exit -1
+elif [ $# -gt 0 ]; then
+	regexp="^(left|right|above|below)$"
+	if ! [[ $1 =~ $regexp ]]; then	
+		echo error: $1 invalid argument
+		echo "usage: $0 <left/right/above/below>"
+		exit -1
+	fi
+fi
+
+
+laptop='eDP1'
+parsed_data=`xrandr --query | awk -vmain=$laptop '
+	BEGIN {n = 0;}
+	(n == 1) {
+		resolution=$1;
+		n = 0;
+	}
+	(/^[[:alnum:]]/ && $2 == "connected" && $1 != main) {
+		secondary=$1;
+		n++;}
+	END {print secondary, resolution}'`
+monitor=${parsed_data% *}
+resolution=${parsed_data#* }
+wallpaper="/home/bhzsolt/Desktop/.wallpapers/current.jpg"
+
+case $1 in 
+	left)		position='--left-of'
+		;;
+	above)		position='--above'
+		;;
+	below)		position='--below'
+		;;
+	right|*)	position='--right-of'
+		;;
+esac
+
+if [ -n "$monitor" ]; then
+	xrandr --output $monitor $position $laptop --mode $resolution
+else
+	xrandr --output HDMI1 --off
+fi
+
+exec feh --bg-fill $wallpaper

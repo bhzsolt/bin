@@ -1,0 +1,17 @@
+#!/bin/bash
+dongle=`ip link | grep -E -o 'wlp0s20.[0-9]'`
+tether=`ip link | grep -E -o 'enp0s20.[0-9]'`
+if [ "$dongle" == "" ] 
+	then if [ "$tether" == "" ]
+		then interface=enp2s0
+		else interface=$tether
+		fi
+	else interface=$dongle
+	fi
+INTERFACE=$interface
+unset interface dongle tether
+export INTERFACE
+if [ "$1" == "echo" ]
+	then	echo $INTERFACE
+		exit 0
+	fi
