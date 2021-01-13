@@ -1,0 +1,1 @@
+exec xinit /home/bhzsolt/.twm.xinitrc -- /bin/X vt11

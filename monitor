@@ -4,39 +4,99 @@
 #set foldmethod=marker
 #set foldmarker={,}
 
-function scale-monitor { 
-	if [[ $# -lt 3 ]]; then
-		echo usage: scale-monitor name device scale
-		return 1
-	fi
-	name=$1;
-	device=$2;
-	scale=$3;
-	xrandr --listmonitors | grep $name >/dev/null 2>&1 && xrandr --delmonitor $name 
-	other_offset=(`xrandr --listmonitors | tail -n1 | awk -F+ '{print $2; print $3;}'`)
-	if [[ ${other_offset[0]} -ne 0 ]]; then
-		offset=+0+0
-	else
-		offset=+`xrandr --listmonitors | tail -n1 | awk -F'[x/ ]' '{ print $4; }'`+0
-	fi
-	pyscript="import numpy as np; res = np.array([1920, 1080]) * $scale; print('{}/530x{}/300${offset}'.format(int(res[0]), int(res[1])));";
-	geom=`python <<< $pyscript`;
-	xrandr --setmonitor $name $geom $device --output $device --scale $scale; 
-	feh --bg-fill ~/Desktop/.wallpapers/current.jpg; 
+test_function() { 
+	local -a 'device=("${'"$1"'[@]}")'
+	echo 'device = ('${device[@]}')'
+}
+# not this, because of word splitting test_f() { local -a 'arr=("${'"$1"'[*]}")'; echo ${arr[*]}; }
+
+function scale_monitor {
+	#monitor scale [laptop/external [1 left/right/above/below]]
+	monitor_regex="^(laptop|external)$"
+	scale_regex="[12](\.[0-9]+)?|0.(0+[1-9]|[1-9][0-9]*)"
+	position_regex="left|right|above|below"
+
+	monitor=laptop
+	scale=( 1 1 )
+	position=left
+
+	[ -n "$1" ] && { monitor=$1; shift; }
+	[ -n "$1" ] && { [ "$monitor" == 'laptop' ] && scale[0]=$1 || scale[1]=$1; shift; }
+	[ -n "$1" ] && { position=$1; shift; }
+
+	[[ $monitor =~ $monitor_regex ]] || echo ERROR: monitor
+	[[ $scale =~ $scale_regex ]] || echo ERROR: scale
+	[[ $position =~ $position_regex ]] || echo ERROR: position
+
+	# device=( name 	xdevice	scale_factor	phys_w	phys_h	x_offs	y_offs	width	height	)
+	laptop=(eDP ${scale[0]})
+	external=(HDMI ${scale[1]})
+
+	for name in $monitor `[ $monitor == "external" ] && echo laptop || echo external`; do
+		test_function $name
+		continue
+		xrandr --listmonitors | grep -q $name && xrandr --delmonitor $name
+		case $name in
+			laptop)		dev=(${laptop[*]})	;;
+			external)	dev=(${external[*]});;
+		esac
+		dev=($name "`xrandr | grep -E "(${dev[0]}[^\s]+)\sconnected" | awk '{ string=""; n=split($0, a, "[^0-9]"); for (i=0; i<n; ++i) { if ( a[i] ~ /[[:digit:]]+/ ) { if (string != "") { string = string  " "  a[i]} else string = a[i];};} printf("%s %s\n", $1, string);}' | awk -vscale=${dev[1]} '{printf("%s scale %d %d 0 0 %d %d\n", $1, $8, $9, $4, $5);}'`")
+		case $name in
+			laptop)		laptop=(${dev[*]})	;;
+			external)	external=(${dev[*]});;
+		esac
+		if [ "$name" == "${monitor}" ] ; then
+			dev[5]=$scale
+		fi
+		case $position in
+			left)
+				;;
+			right)
+				;;
+			below)
+				;;
+			above)
+				;;
+		esac
+		res=(`xrandr | grep -E "${dev[1]}\sconnected" -A1 | tail -n1 | awk -F '(x|\t+| +)' '{print $2; print $3;}'`)
+		geom=`python <<< "print('{}/${dev[2]}x{}/${dev[3]}+${dev[4]}+0'.format(int(${res[0]} * ${dev[5]}), int(${res[1]} * ${dev[5]})));"`
+		xrandr --setmonitor ${dev[0]} $geom ${dev[1]} --output ${dev[1]} --scale ${dev[5]}
+	done
+	#feh --bg-fill ~/Desktop/.wallpapers/current.jpg; 
 }
 
-if [ $# -gt 1 ]; then
-	echo "usage: $0 <left/right/above/below>"
+function usage {
+	echo "usage: $0 <left/right/above/below/scale [monitor [scale]]>"
+}
+
+scale_monitor "$@"
+exit $?
+
+
+if [ $# -gt 3 ]; then
+	usage
 	exit -1
 elif [ $# -gt 0 ]; then
-	regexp="^(left|right|above|below)$"
+	regexp="^(left|right|above|below|scale)$"
 	if ! [[ $1 =~ $regexp ]]; then	
 		echo error: $1 invalid argument
-		echo "usage: $0 <left/right/above/below>"
+		usage
 		exit -1
+	elif [ $# -gt 1 ]; then
+		regexp="^(laptop|external)$"
+		if ! [[ $2 =~ $regexp ]]; then
+			echo error: $2 invalid argument: available monitors: laptop, external
+			usage
+			exit -1
+		fi
 	fi
 fi
 
+if [ "$1" == "scale" ]; then
+	shift 
+	scale_monitor "$@"
+	exit $?
+fi
 
 laptop='eDP1'
 parsed_data=`xrandr --query | awk -vmain=$laptop '

@@ -1,0 +1,2 @@
+#!/bin/bash
+exec VBoxSDL --fixedmode 1920 1080 32 --fullscreenresize --hostkey 319 0 --startvm windows10 "$@"

@@ -1,55 +1,64 @@
 #!/bin/bash
 
-exec 3>>~/.log/netup/$(date +%Y%m%d)
-date +%T >&3
+logfile=~/.log/netup/$(date +%Y%m%d)
+touch $logfile
+date +%T >>$logfile
 
-sudo -p "netup[$INTERFACE]: " clear
+function sudorl {
+	# echo $ sudo $@
+	sudo -p "netup[$INTERFACE]: " "$@" |& cat >>$logfile
+}
 
-echo sudo ip link set $INTERFACE up >&3
-sudo ip link set $INTERFACE up >&3
+function rl {
+	# echo $ $@
+	"$@" |& cat >>$logfile
+}
+
+systemctl is-active dhcpcd | xargs test "inactive" == && sudorl systemctl start dhcpcd
+timestamp=`date +'%Y-%m-%d %H:%M:%S'`
 if ! [[ "$INTERFACE" =~ "enp" ]]; then
-	echo sudo wpa_supplicant -B -i $INTERFACE -c /etc/wpa_supplicant/bhzsolt.conf #>&3 2>&1
-	sudo wpa_supplicant -B -i $INTERFACE -c /etc/wpa_supplicant/bhzsolt.conf #>&3 2>&1
-	echo wpa_cli scan
-	wpa_cli scan #>&3 2>&1
-	sleep 5s && { echo sudo wpa_cli scan_results; sudo wpa_cli scan_results; }
-	read WPASSID WPASETD
-	network_id=""
+	sudorl wpa_supplicant -Dnl80211 -B -i $INTERFACE -c /etc/wpa_supplicant/bhzsolt.conf
 	
-	if [ "$WPASSID" != "" ]; then 
-		if [ "$WPASSID" != "cmd" ]; then	
-			network_id=$( sudo wpa_cli list_networks | grep -Eo "^[0-9]+\s+.*${WPASSID}.+$" | grep -Eo "^[0-9]+")
-			network_id="-B select_network ${network_id}"
+	rl wpa_cli reassociate
+	sleep 2.5
+	if journalctl -u dhcpcd --since="$timestamp" | grep -q 'IAID'; then
+		# IAID address present ==> started reassociation
+		while ! journalctl -u dhcpcd -n5 | grep -qE 'leased ([0-9]{1,3}\.?){4} for (infinity|[0-9]+ seconds)'; do
+			sleep 0.01
+		done
+	fi
+	if ! ping -nrc1 -W0.01 router >/dev/null 2>&1; then
+		known_ssids=`awk '{printf("%s", substr($1, 1, length($1) - 1))}' <<< $(wpa_cli list_networks | grep -E '^[0-9]+.+' | awk '{print $2}' | tr '\n' '|')`
+		while wpa_cli scan | grep -q 'FAIL'; do 
+			sleep 0.125;
+		done
+		sleep 0.125
+		slept=0
+		while [ "`wpa_cli scan_results | tail -n +3 | wc -l`" -lt 2 ] && [ $slept -lt 200 ]; do
+			sleep 0.05;
+			(( slept=$slept+5 ))
+		done
+		if ! wpa_cli scan_results | grep -E $known_ssids; then
+			wpa_cli scan_results | tail -n +3
+			wpa_cli
+		else
+			while [ -z "$SSID_REGEX" ]; do 
+				read -p 'ssid regex: ' SSID_REGEX
+			done
+			net_id=`wpa_cli list_networks | awk -vregex=$SSID_REGEX '($2 ~ regex) { print $1;}'`
+			if ! wpa_cli list_networks | grep -E "$SSID_REGEX" | grep -iEq 'current'; then
+				read -p 'set default? [Y/n] ' SET_DEFAULT
+			fi
+			rl wpa_cli select_network $net_id
+			rl wpa_cli reassociate
+			if [ -z "$SET_DEFAULT" ] || [ "$SET_DEFAULT" == 'y' ] || [ "$SET_DEFAULT" != 'Y' ]; then
+				rl wpa_cli save_config
+			fi
 		fi
 	else
-		network_id="-B reassociate"
+		echo Connected to network [`wpa_cli list_networks | grep -i 'current' | tr -s ' ' '\t' | cut -f 2`]
 	fi
 
-	if [ "$network_id" == "" ]; then
-		exec 3>&1
-	fi
-
-	if [ "$network_id" != "" ]; then
-		if [ "$WPASETD" != "" ]; then
-			echo "Setting network $WPASSID default"
-		fi
-	else
-		echo "Configuring networks"
-	fi
-
-	echo wpa_cli $network_id #>&3
-	wpa_cli $network_id #>&3
-	if [ "$WPASETD" != "" ]; then
-		echo wpa_cli -B save_config #>&3
-		wpa_cli -B save_config #>&3
-	fi
-	
-	unset WPASSID WPASETD
+	unset SSID_REGEX SET_DEFAULT net_id known_ssids slept
 fi
-
-echo sudo dhcpcd $INTERFACE
-sudo dhcpcd $INTERFACE
-
-exec	3>&-
-exit 0
-
+exit $?

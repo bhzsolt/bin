@@ -1,0 +1,1 @@
+exec ide $(awk -F '=' '{print $1}' ~/bin/database/ide | dmenu -f -nb black | head -n1) "$@"
