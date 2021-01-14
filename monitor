@@ -10,8 +10,31 @@ test_function() {
 }
 # not this, because of word splitting test_f() { local -a 'arr=("${'"$1"'[*]}")'; echo ${arr[*]}; }
 
-function scale_monitor {
-	#monitor scale [laptop/external [1 left/right/above/below]]
+get_devices() {
+	# against xrandrs wishes, my laptop has only 1 HDMI port.
+	laptop=eDP
+	external=HDMI
+	for dev in laptop external; do
+		dev=($name "`xrandr | grep -E "(${!dev}[^\s]+)\sconnected" | awk '{ string=""; n=split($0, a, "[^0-9]"); for (i=0; i<n; ++i) { if ( a[i] ~ /[[:digit:]]+/ ) { if (string != "") { string = string  " "  a[i]} else string = a[i];};} printf("%s %s\n", $1, string);}' | awk -v scale=1 '{printf("%s scale %d %d 0 0 %d %d\n", $1, $8, $9, $4, $5);}'`")
+		eval "${!dev}=(${dev[@]})"
+		unset dev
+	done
+}
+
+usage() {
+	echo	"usage: $0 [monitor [options per monitor]]"
+	[[ $1 =~ ^(m|a|h)$ ]] && echo -e "\tmonitor: laptop/external"
+	[[ $1 =~ ^(o|s|p|h)$ ]] && echo -e	"\toptions:"
+	[[ $1 =~ ^(o|s|h)$ ]] && echo -e	"\t\t-s | --scale (0 -> 3)"
+	[[ $1 =~ ^(o|p|h)$ ]] && echo -e "\t\t-p | --position <l/r/a/b/left/right/above/below>"
+	[[ "$1" =~ ^h$ ]] && exit 0 || exit 1
+}
+
+parse_args() {
+}
+
+scale_monitor() {
+
 	monitor_regex="^(laptop|external)$"
 	scale_regex="[12](\.[0-9]+)?|0.(0+[1-9]|[1-9][0-9]*)"
 	position_regex="left|right|above|below"
@@ -24,17 +47,18 @@ function scale_monitor {
 	[ -n "$1" ] && { [ "$monitor" == 'laptop' ] && scale[0]=$1 || scale[1]=$1; shift; }
 	[ -n "$1" ] && { position=$1; shift; }
 
-	[[ $monitor =~ $monitor_regex ]] || echo ERROR: monitor
-	[[ $scale =~ $scale_regex ]] || echo ERROR: scale
-	[[ $position =~ $position_regex ]] || echo ERROR: position
+	[[ $monitor =~ $monitor_regex ]] || { echo ERROR: invalid monitor; usage m; }
+	[[ $scale =~ $scale_regex ]] || { echo ERROR: invalid scale; usage s; }
+	[[ $position =~ $position_regex ]] || { echo ERROR: invalid position; usage p; }
 
-	# device=( name 	xdevice	scale_factor	phys_w	phys_h	x_offs	y_offs	width	height	)
+	# device=( name 	xdevice	scale	phys_w	phys_h	x_offs	y_offs	width	height	)
 	laptop=(eDP ${scale[0]})
 	external=(HDMI ${scale[1]})
 
 	for name in $monitor `[ $monitor == "external" ] && echo laptop || echo external`; do
 		test_function $name
 		continue
+		#XXX
 		xrandr --listmonitors | grep -q $name && xrandr --delmonitor $name
 		case $name in
 			laptop)		dev=(${laptop[*]})	;;
@@ -65,10 +89,7 @@ function scale_monitor {
 	#feh --bg-fill ~/Desktop/.wallpapers/current.jpg; 
 }
 
-function usage {
-	echo "usage: $0 <left/right/above/below/scale [monitor [scale]]>"
-}
-
+[[ $1 =~ ^(-h|--help)$ ]] && usage h
 scale_monitor "$@"
 exit $?
 
