@@ -1,0 +1,40 @@
+#!/usr/bin/python3
+
+def write_out_list(output, index, directory, filenames): 
+    with open(output, 'w') as f:
+        f.write('{}\n'.format(index))
+        f.write(directory + '\n')
+        f.write(' '.join(filenames) + '\n')
+
+def create_new_list(    directory   = '/home/bhzsolt/Desktop/.wallpapers/fog',
+                        output      = '/home/bhzsolt/Desktop/.wallpapers/list'):
+    from os import listdir
+    from random import shuffle
+
+    filenames = listdir(directory)
+    shuffle(filenames)
+    write_out_list(output, 0, directory, filenames)
+
+def get_next(input_file = '/home/bhzsolt/Desktop/.wallpapers/list')
+    unpack = lambda xs: (int(xs[0]), xs[1], xs[2].split(' '))
+    with open(input_file, 'r') as f:
+        index, directory, filenames = unpack(f.read().strip().split('\n'))
+        
+    if index < len(filenames) - 1:
+        write_out_list(input_file, index + 1, directory, filenames)
+        return directory + filenames[index]
+    else
+        create_new_list(directory, input_file)
+        return directory + filenames[index]
+
+def main():
+    from os import symlink
+    from os.path import exists
+    from os import remove
+    from os import execlp
+
+    current = '/home/bhzsolt/Desktop/.wallpapers/current.jpg'
+    if exists(current):
+        remove(current)
+    symlink(get_next(), current)
+    execlp('fehbg')
