@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 def write_out_list(output, index, directory, filenames): 
     with open(output, 'w') as f:
         f.write('{}\n'.format(index))

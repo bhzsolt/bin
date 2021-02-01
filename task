@@ -1,0 +1,50 @@
+#!/bin/bash
+
+usage() {
+	echo -e "usage: $0 command"
+	echo -e "commands:"
+	echo -e "\tstart name duration"
+	echo -e "\tpause"
+	echo -e "\tcontinue"
+	echo -e "\thelp"
+	[[ "$1" == help ]] && exit 0 || exit 1
+}
+
+task_function() {
+	name=$1; shift
+	echo $(date) :: start[$name] "$@" >>~/.log/task
+	rm -rf ~/.log/TASK_ID
+	psleep "$@" &
+	echo $! >~/.log/TASK_ID
+	wait
+	echo $(date) :: finished[$name] >>~/.log/task
+	slock echo TIME IS UP FOR: $name | dmenu -fn "Source Code Pro:size=12" -nb black -nf "#fdf6e3" -sb black -sf "#859900"
+}
+
+opt=$1
+shift
+case $opt in
+	start)
+		[ $# -lt 2 ] && usage
+		duration=${2//:/ }
+		task_function $1 $duration &
+		;;
+	pause)
+		echo $(date) :: pause >>~/.log/task
+		kill -s SIGUSR1 $(cat ~/.log/TASK_ID)
+		;;
+	resume)
+		echo $(date) :: resume >>~/.log/task
+		kill -s SIGCONT $(cat ~/.log/TASK_ID)
+		;;
+	lock)
+		echo $(date) :: lock >>~/.log/task
+		kill -s SIGCONT $(cat ~/.log/TASK_ID)
+		locker lock
+		echo $(date) :: unlock >>~/.log/task
+		kill -s SIGUSR1 $(cat ~/.log/TASK_ID)
+		;;
+	help|*)
+		usage help
+		;;
+esac

@@ -1,8 +1,0 @@
-from os import listdir;
-from random import shuffle;
-wallpapers = listdir('/home/bhzsolt/Desktop/.wallpapers/fog')
-shuffle(wallpapers)
-with open('/home/bhzsolt/Desktop/.wallpapers/list', 'w') as f:
-	f.write('0\n')
-	f.write('/home/bhzsolt/Desktop/.wallpapers/fog\n')
-	f.write(' '.join(wallpapers) + '\n')

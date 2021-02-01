@@ -1,64 +1,70 @@
 #!/bin/bash
 
-logfile=~/.log/netup/$(date +%Y%m%d)
-touch $logfile
-date +%T >>$logfile
-
-function sudorl {
+sudorl() {
 	# echo $ sudo $@
 	sudo -p "netup[$INTERFACE]: " "$@" |& cat >>$logfile
 }
 
-function rl {
+rl() {
 	# echo $ $@
 	"$@" |& cat >>$logfile
 }
 
-systemctl is-active dhcpcd | xargs test "inactive" == && sudorl systemctl start dhcpcd
-timestamp=`date +'%Y-%m-%d %H:%M:%S'`
-if ! [[ "$INTERFACE" =~ "enp" ]]; then
-	sudorl wpa_supplicant -Dnl80211 -B -i $INTERFACE -c /etc/wpa_supplicant/bhzsolt.conf
-	
-	rl wpa_cli reassociate
-	sleep 2.5
-	if journalctl -u dhcpcd --since="$timestamp" | grep -q 'IAID'; then
-		# IAID address present ==> started reassociation
-		while ! journalctl -u dhcpcd -n5 | grep -qE 'leased ([0-9]{1,3}\.?){4} for (infinity|[0-9]+ seconds)'; do
-			sleep 0.01
-		done
-	fi
-	if ! ping -nrc1 -W0.01 router >/dev/null 2>&1; then
-		known_ssids=`awk '{printf("%s", substr($1, 1, length($1) - 1))}' <<< $(wpa_cli list_networks | grep -E '^[0-9]+.+' | awk '{print $2}' | tr '\n' '|')`
-		while wpa_cli scan | grep -q 'FAIL'; do 
-			sleep 0.125;
-		done
-		sleep 0.125
-		slept=0
-		while [ "`wpa_cli scan_results | tail -n +3 | wc -l`" -lt 2 ] && [ $slept -lt 200 ]; do
-			sleep 0.05;
-			(( slept=$slept+5 ))
-		done
-		if ! wpa_cli scan_results | grep -E $known_ssids; then
-			wpa_cli scan_results | tail -n +3
-			wpa_cli
-		else
-			while [ -z "$SSID_REGEX" ]; do 
-				read -p 'ssid regex: ' SSID_REGEX
+netup_proc() {
+	systemctl is-active dhcpcd | xargs test "inactive" == && sudorl systemctl start dhcpcd
+	timestamp=$(date +'%Y-%m-%d %H:%M:%S')
+	if ! [[ "$INTERFACE" =~ "enp" ]]; then
+		sudorl wpa_supplicant -Dnl80211 -B -i $INTERFACE -c /etc/wpa_supplicant/bhzsolt.conf
+		
+		rl wpa_cli reassociate
+		sleep 2.5
+		if journalctl -u dhcpcd --since="$timestamp" | grep -q 'IAID'; then
+			# IAID address present ==> started reassociation
+			while ! journalctl -u dhcpcd -n5 | grep -qE 'leased ([0-9]{1,3}\.?){4} for (infinity|[0-9]+ seconds)'; do
+				sleep 0.01
 			done
-			net_id=`wpa_cli list_networks | awk -vregex=$SSID_REGEX '($2 ~ regex) { print $1;}'`
-			if ! wpa_cli list_networks | grep -E "$SSID_REGEX" | grep -iEq 'current'; then
-				read -p 'set default? [Y/n] ' SET_DEFAULT
-			fi
-			rl wpa_cli select_network $net_id
-			rl wpa_cli reassociate
-			if [ -z "$SET_DEFAULT" ] || [ "$SET_DEFAULT" == 'y' ] || [ "$SET_DEFAULT" != 'Y' ]; then
-				rl wpa_cli save_config
-			fi
 		fi
-	else
-		echo Connected to network [`wpa_cli list_networks | grep -i 'current' | tr -s ' ' '\t' | cut -f 2`]
+		if ! rl ping -nrc1 -W0.01 router; then 
+			# 
+			known_ssids=$(awk '{printf("%s", substr($1, 1, length($1) - 1))}' <<< $(wpa_cli list_networks | grep -E '^[0-9]+.+' | awk '{print $2}' | tr '\n' '|'))
+			while wpa_cli scan | grep -q 'FAIL'; do 
+				sleep 0.125;
+			done
+			sleep 0.125
+			slept=0
+			while [ "`wpa_cli scan_results | tail -n +3 | wc -l`" -lt 2 ] && [ $slept -lt 200 ]; do
+				sleep 0.05;
+				(( slept=$slept+5 ))
+			done
+			if ! wpa_cli scan_results | grep -E $known_ssids; then
+				wpa_cli scan_results | tail -n +3
+				wpa_cli
+			else
+				while [ -z "$SSID_REGEX" ]; do 
+					read -p 'ssid regex: ' SSID_REGEX
+				done
+				net_id=`wpa_cli list_networks | awk -vregex=$SSID_REGEX '($2 ~ regex) { print $1;}'`
+				if ! wpa_cli list_networks | grep -E "$SSID_REGEX" | grep -iEq 'current'; then
+					read -p 'set default? [Y/n] ' SET_DEFAULT
+				fi
+				rl wpa_cli select_network $net_id
+				rl wpa_cli reassociate
+				if [ -z "$SET_DEFAULT" ] || [ "$SET_DEFAULT" == 'y' ] || [ "$SET_DEFAULT" != 'Y' ]; then
+					rl wpa_cli save_config
+				fi
+			fi
+		else
+			echo "Connected to network [$(wpa_cli list_networks | grep -i 'current' | tr -s ' ' '\t' | cut -f 2)]"
+		fi
+		unset SSID_REGEX SET_DEFAULT net_id known_ssids slept
 	fi
+}
 
-	unset SSID_REGEX SET_DEFAULT net_id known_ssids slept
-fi
-exit $?
+logfile=~/.log/netup/$(date +%Y%m%d)
+touch $logfile
+
+rl echo "==================== :: $(date +%T) :: ===================="
+ping -nrc1 -W0.01 router >/dev/null 2>&1 || netup_proc
+retval=$?
+rl echo -e "$retval\n"
+exit $retval

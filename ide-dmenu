@@ -1,1 +1,1 @@
-exec ide $(awk -F '=' '{print $1}' ~/bin/database/ide | dmenu -f -nb black | head -n1) "$@"
+exec ide $(awk -F '=' '{print $1}' ~/bin/database/ide | dmenu -fn "Source Code Pro:size=12" -nb black -nf "#fdf6e3" -sb black -sf "#859900" | head -n1) "$@"

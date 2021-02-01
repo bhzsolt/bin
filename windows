@@ -1,2 +1,4 @@
 #!/bin/bash
-exec VBoxSDL --fixedmode 1920 1080 32 --fullscreenresize --hostkey 319 0 --startvm windows10 "$@"
+exec VBoxManage startvm windows10 --type gui "$@"
+#exec VBoxManage snapshot windows10 restorecurrent "$@"
+#exec VBoxSDL --fixedmode 1920 1080 32 --fullscreenresize --hostkey 319 0 --startvm windows10 "$@"

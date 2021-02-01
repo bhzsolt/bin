@@ -1,6 +1,43 @@
 #!/bin/bash
 
-physlock -l
-slock
-exec physlock -L
+locker-function() {
+	xset dpms force off
+	[ "$1" != term ] && physlock -l
+	slock
+	[ "$1" != term ] && physlock -L
+}
+
+start-locker() {
+	# dim after-dim [term]
+	screensaver=( 180 120 )
+	[ -n "$1" ] && [ -n "$2" ] && { 
+		screensaver[0]=$1; shift;
+		screensaver[1]=$1; shift; 
+	}
+	xset s on
+	xset s "${screensaver[@]}"
+	#xss-lock -n /usr/share/doc/xss-lock/dim-screen.sh --ignore-sleep -- locker lock &
+}
+
+arg=$1
+shift
+case $arg in
+	start)
+		start-locker "$1" "$2"
+		;;
+	reset)
+		kill -s SIGHUP $(pgrep xss-lock)
+		;;
+	stop)
+		kill -s SIGTERM $(pgrep xss-lock)
+		xset s off
+		;;
+	set-timer)
+		xset s $1 $2
+		;;
+	lock|'')
+		locker-function $1
+		;;
+esac
+exit $?
 

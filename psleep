@@ -1,0 +1,56 @@
+#!/usr/bin/python3
+
+import time
+import signal
+from queue import LifoQueue
+from argparse import ArgumentParser
+
+is_paused = False
+start = 0
+queue = LifoQueue()
+
+def pause_f(signalNumber, frame):
+    global start, is_paused, queue
+    is_paused = True
+    start = time.time()
+    return
+
+def cont_f(signalNumber, frame):
+    global start, is_paused, queue
+    now = time.time()
+    queue.put(now - start, False)
+    start = now
+    is_paused = False
+    return
+
+def sleep(seconds):
+    global start, is_paused, queue
+    start = time.time()
+    time.sleep(seconds)
+    if is_paused:
+        cont(siganl.SIGCONT, None)
+        pause(signal.SIGSTOP, None)
+    while True:
+        if queue.qsize() != 0:
+            seconds = queue.get(False)
+            time.sleep(seconds)
+        else:
+            break
+    return
+
+def main():
+    parser = ArgumentParser(description='psleep')
+    parser.add_argument('durations', nargs='+', type=float)
+    
+    args = parser.parse_args()
+    seconds = 0
+    for durations in args.durations:
+        seconds = seconds * 60 + durations
+    sleep(seconds)
+
+if __name__ == '__main__':
+    signal.signal(signal.SIGUSR1, pause_f)
+    signal.signal(signal.SIGCONT, cont_f)
+    signal.signal(signal.SIGUSR2, cont_f)
+
+    main()

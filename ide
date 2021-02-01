@@ -2,7 +2,8 @@
 
 source ~/bin/database/ide
 
-emvironment=home
-[ -n "$1" ] && [ -n "${!1}" ] && { environment="$1"; shift; }
+environment=home
+[[ -n "$1" ]] && [[ -n "${!1}" ]] && { environment="$1"; shift; }
 name="[IDE :: ${!environment##*/}]"
+echo st "$@" -n "$name" -t "$name" -T "$name" -e bash ~/bin/ide.helper.sh "${!environment}"
 exec st "$@" -n "$name" -t "$name" -T "$name" -e bash ~/bin/ide.helper.sh "${!environment}"

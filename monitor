@@ -31,6 +31,7 @@ usage() {
 }
 
 parse_args() {
+	echo ' ';
 }
 
 scale_monitor() {
@@ -54,6 +55,7 @@ scale_monitor() {
 	# device=( name 	xdevice	scale	phys_w	phys_h	x_offs	y_offs	width	height	)
 	laptop=(eDP ${scale[0]})
 	external=(HDMI ${scale[1]})
+		
 
 	for name in $monitor `[ $monitor == "external" ] && echo laptop || echo external`; do
 		test_function $name
@@ -90,6 +92,8 @@ scale_monitor() {
 }
 
 [[ $1 =~ ^(-h|--help)$ ]] && usage h
+	python <<< "print('{}/__x{}/__+1920+0'.format(int(1920 * $1), int(1080 * $1)));"
+	exit 0
 scale_monitor "$@"
 exit $?
 
